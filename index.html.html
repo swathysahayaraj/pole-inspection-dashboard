@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pole Inspection History Dashboard</title>
+<style>
+:root{--navy:#17324d;--blue:#246b9e;--pale:#eef5fa;--line:#dce5ec;--ink:#203040;--muted:#657789;--green:#18794e;--red:#b42318}
+*{box-sizing:border-box}body{margin:0;background:#f4f7fa;color:var(--ink);font:15px/1.45 Arial, sans-serif}
+header{background:linear-gradient(115deg,#17324d,#246b9e);color:white;padding:28px 20px}
+.wrap{max-width:1150px;margin:auto;padding:0 16px}header h1{margin:0 0 6px;font-size:clamp(22px,4vw,32px)}header p{margin:0;color:#e3edf5}
+main{padding:22px 0 42px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.stat,.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:17px;box-shadow:0 3px 12px #17324d0a}
+.stat span{display:block;color:var(--muted);font-size:13px}.stat strong{display:block;font-size:26px;margin-top:5px;color:var(--navy)}
+.panel{margin-bottom:16px}.panel h2{font-size:18px;margin:0 0 14px;color:var(--navy)}
+.filters{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:10px}
+label{display:block;font-size:12px;font-weight:700;color:#526577;margin-bottom:5px}
+input,select,textarea{width:100%;border:1px solid #cbd7e1;border-radius:8px;padding:10px 11px;font:inherit;background:#fff;color:var(--ink);min-width:0}
+input:focus,select:focus,textarea:focus{outline:2px solid #9bc7e5;border-color:var(--blue)}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+button{border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;background:var(--blue);color:white}
+button.secondary{background:#e8eff5;color:var(--navy)}button.danger{background:#fff0ef;color:var(--red)}button:hover{filter:brightness(.96)}
+.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:#f8fafc}td{font-size:14px}
+.pill{display:inline-block;padding:4px 9px;border-radius:99px;font-size:12px;font-weight:700;background:#eaf6ef;color:var(--green)}
+.pill.issue{background:#fff0ed;color:var(--red)}.row-actions{display:flex;gap:6px}.row-actions button{padding:6px 9px;font-size:12px}
+.empty{text-align:center;color:var(--muted);padding:28px}
+.modal{display:none;position:fixed;inset:0;background:#0c2238a8;z-index:5;padding:18px;overflow:auto}.modal.open{display:grid;place-items:center}
+.dialog{width:min(620px,100%);background:white;border-radius:15px;padding:22px;box-shadow:0 15px 45px #0003}.dialog h2{margin:0 0 16px;color:var(--navy)}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}.dialog textarea{min-height:86px;resize:vertical}
+.note{color:var(--muted);font-size:12px;margin:12px 0 0}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
+@media(max-width:760px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.stats{grid-template-columns:1fr 1fr}.formgrid{grid-template-columns:1fr}.full{grid-column:auto}}
+@media(max-width:420px){.filters{grid-template-columns:1fr}.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>Pole Inspection Dashboard</h1><p>Search, record and maintain inspection history for every monitored pole.</p></div></header>
+<main class="wrap">
+<section class="stats">
+ <div class="stat"><span>Total inspection records</span><strong id="totalCount">0</strong></div>
+ <div class="stat"><span>Poles recorded</span><strong id="poleCount">0</strong></div>
+ <div class="stat"><span>Issues reported</span><strong id="issueCount">0</strong></div>
+</section>
+<section class="panel">
+ <h2>Find inspection records</h2>
+ <div class="filters">
+  <div><label for="poleFilter">Pole number</label><input id="poleFilter" placeholder="e.g. Pole 1"></div>
+  <div><label for="inspectorFilter">Inspector name</label><input id="inspectorFilter" placeholder="Search inspector"></div>
+  <div><label for="dateFilter">Inspection date</label><input id="dateFilter" type="date"></div>
+  <div><label for="statusFilter">Connection status</label><select id="statusFilter"><option value="">All statuses</option><option>Connected</option><option>Disconnected</option><option>Issue found</option><option>Not checked</option></select></div>
+  <div><label for="remarksFilter">Remarks</label><input id="remarksFilter" placeholder="Search remarks"></div>
+ </div>
+ <div class="actions"><button class="secondary" id="clearFilters">Clear filters</button><button class="secondary" id="exportCsv">Export CSV</button></div>
+</section>
+<section class="panel">
+ <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+  <h2 style="margin:0">Inspection history</h2><button id="addRecord">+ Add inspection</button>
+ </div>
+ <div class="table-wrap"><table><thead><tr><th>Pole</th><th>Date</th><th>Inspector</th><th>Connection status</th><th>Remarks</th><th>Actions</th></tr></thead><tbody id="recordsBody"></tbody></table></div>
+ <div class="note">Records are saved in this browser on this device. Use Export CSV to keep a backup or move records to another device.</div>
+</section>
+<footer>Editable sample dashboard · Replace sample entries with your actual inspection records.</footer>
+</main>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+ <div class="dialog">
+  <h2 id="formTitle">Add inspection record</h2>
+  <form id="recordForm">
+   <div class="formgrid">
+    <div><label for="pole">Pole number *</label><input id="pole" required placeholder="Pole 1"></div>
+    <div><label for="date">Inspection date *</label><input id="date" type="date" required></div>
+    <div><label for="inspector">Inspector name *</label><input id="inspector" required placeholder="Name of inspector"></div>
+    <div><label for="status">Connection status *</label><select id="status" required><option>Connected</option><option>Disconnected</option><option>Issue found</option><option>Not checked</option></select></div>
+    <div class="full"><label for="remarks">Remarks / observations</label><textarea id="remarks" placeholder="Enter inspection notes..."></textarea></div>
+   </div>
+   <div class="actions"><button type="submit">Save record</button><button type="button" class="secondary" id="cancel">Cancel</button></div>
+   <p class="note">The record is stored in this browser after you save it.</p>
+  </form>
+ </div>
+</div>
+<script>
+const KEY='poleInspectionRecords_v1';
+const sample=[
+ {id:1,pole:'Pole 1',date:'2026-11-08',inspector:'Inspector A',status:'Connected',remarks:'Wire connection checked; normal.'},
+ {id:2,pole:'Pole 1',date:'2026-11-01',inspector:'Inspector B',status:'Connected',remarks:'Routine inspection completed.'},
+ {id:3,pole:'Pole 2',date:'2026-11-06',inspector:'Inspector C',status:'Issue found',remarks:'Loose wire connection; follow-up required.'}
+];
+let records=JSON.parse(localStorage.getItem(KEY)||'null')||sample;
+let editingId=null;
+const $=id=>document.getElementById(id);
+const save=()=>localStorage.setItem(KEY,JSON.stringify(records));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function filtered(){
+ const p=$('poleFilter').value.trim().toLowerCase(),i=$('inspectorFilter').value.trim().toLowerCase(),d=$('dateFilter').value,s=$('statusFilter').value,r=$('remarksFilter').value.trim().toLowerCase();
+ return records.filter(x=>(!p||x.pole.toLowerCase().includes(p))&&(!i||x.inspector.toLowerCase().includes(i))&&(!d||x.date===d)&&(!s||x.status===s)&&(!r||x.remarks.toLowerCase().includes(r))).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+}
+function render(){
+ const list=filtered();$('totalCount').textContent=records.length;$('poleCount').textContent=new Set(records.map(x=>x.pole.toLowerCase())).size;$('issueCount').textContent=records.filter(x=>x.status==='Issue found'||x.status==='Disconnected').length;
+ $('recordsBody').innerHTML=list.length?list.map(x=>`<tr><td><strong>${esc(x.pole)}</strong></td><td>${esc(x.date)}</td><td>${esc(x.inspector)}</td><td><span class="pill ${x.status==='Issue found'||x.status==='Disconnected'?'issue':''}">${esc(x.status)}</span></td><td>${esc(x.remarks||'—')}</td><td><div class="row-actions"><button class="secondary" onclick="editRecord(${x.id})">Edit</button><button class="danger" onclick="deleteRecord(${x.id})">Delete</button></div></td></tr>`).join(''):'<tr><td colspan="6" class="empty">No matching inspection records found.</td></tr>';
+}
+function openModal(x){
+ $('formTitle').textContent=x?'Edit inspection record':'Add inspection record';
+ $('pole').value=x?.pole||'';$('date').value=x?.date||new Date().toISOString().slice(0,10);$('inspector').value=x?.inspector||'';$('status').value=x?.status||'Connected';$('remarks').value=x?.remarks||'';
+ editingId=x?.id??null;$('modal').classList.add('open');
+}
+function closeModal(){$('modal').classList.remove('open');$('recordForm').reset();editingId=null}
+window.editRecord=id=>{const x=records.find(r=>r.id===id);if(x)openModal(x)};
+window.deleteRecord=id=>{if(confirm('Delete this inspection record?')){records=records.filter(x=>x.id!==id);save();render()}};
+$('addRecord').onclick=()=>openModal(null);$('cancel').onclick=closeModal;
+$('recordForm').onsubmit=e=>{e.preventDefault();const item={id:editingId??Date.now(),pole:$('pole').value.trim(),date:$('date').value,inspector:$('inspector').value.trim(),status:$('status').value,remarks:$('remarks').value.trim()};if(editingId!==null)records=records.map(x=>x.id===editingId?item:x);else records.push(item);save();render();closeModal()};
+['poleFilter','inspectorFilter','dateFilter','statusFilter','remarksFilter'].forEach(id=>$(id).addEventListener('input',render));
+$('clearFilters').onclick=()=>{['poleFilter','inspectorFilter','dateFilter','remarksFilter'].forEach(id=>$(id).value='');$('statusFilter').value='';render()};
+$('exportCsv').onclick=()=>{const rows=[['Pole','Date','Inspector','Connection status','Remarks'],...filtered().map(x=>[x.pole,x.date,x.inspector,x.status,x.remarks])];const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download='pole-inspection-history.csv';a.click();URL.revokeObjectURL(a.href)};
+render();
+</script>
+</body></html>
